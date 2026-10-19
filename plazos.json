@@ -1,0 +1,36 @@
+{
+  "_nota": "Plazos de ejemplo (ficticios) coherentes con data/docs. Reemplazar por los reales de la institución. feriados: lista de fechas YYYY-MM-DD que no cuentan como días hábiles.",
+  "feriados": [],
+  "tramites": {
+    "inscripcion_titulacion": {
+      "nombre": "Inscripción del proceso de titulación",
+      "dias_habiles": 20,
+      "desde": "el inicio del semestre",
+      "fuente": "reglamento_titulacion.md"
+    },
+    "apelacion_nota": {
+      "nombre": "Apelación de nota final",
+      "dias_habiles": 5,
+      "desde": "la publicación de la nota",
+      "fuente": "procesos_academicos.md"
+    },
+    "retiro_asignatura": {
+      "nombre": "Retiro de asignatura sin penalización",
+      "dias_habiles": 10,
+      "desde": "el inicio de clases",
+      "fuente": "procesos_academicos.md"
+    },
+    "postulacion_beca_excelencia": {
+      "nombre": "Postulación a la Beca de Excelencia Académica",
+      "dias_habiles": 15,
+      "desde": "la apertura del proceso de postulación",
+      "fuente": "becas_beneficios.md"
+    },
+    "certificado_alumno": {
+      "nombre": "Entrega de certificado de alumno regular o de notas",
+      "dias_habiles": 3,
+      "desde": "la solicitud en el portal",
+      "fuente": "procesos_academicos.md"
+    }
+  }
+}
