@@ -99,7 +99,7 @@ Ver [`docs/pruebas.md`](docs/pruebas.md): 23 pruebas automáticas que verifican 
 Datos de ejemplo; el respaldo local de embeddings es léxico; no hay autenticación de usuarios; el planificador depende de que el modelo devuelva JSON (si falla se usa un plan por defecto).
 
 ## Uso de IA
-Se utilizó claude para comprobar codigo y errores.
+_(Declarar aquí y en el informe qué herramientas de IA se usaron y cómo, según la pauta.)_
 
 ## Referencias
 - LangChain AI. (s. f.). *LangGraph documentation*. https://langchain-ai.github.io/langgraph/
