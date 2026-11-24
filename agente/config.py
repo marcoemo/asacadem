@@ -30,3 +30,11 @@ MEMORY_TOP_K = 3
 DB_CHECKPOINTS = STORAGE_DIR / "checkpoints.db"   # memoria de corto plazo (por thread)
 DB_APP = STORAGE_DIR / "app.db"                   # memoria de largo plazo + tickets
 RAG_INDEX_PATH = STORAGE_DIR / "rag_index.json"
+
+# ---- Observabilidad y seguridad (EP3)
+LOG_PATH = Path(os.getenv("AGENTE_LOG_PATH", STORAGE_DIR / "logs" / "eventos.jsonl"))
+LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+MAX_INPUT_CHARS = int(os.getenv("MAX_INPUT_CHARS", "1500"))
+# Precios en USD por millón de tokens (copiar del modelo en OpenRouter). 0 = no calcular costo.
+PRECIO_IN_USD_1M = float(os.getenv("PRECIO_IN_USD_1M", "0"))
+PRECIO_OUT_USD_1M = float(os.getenv("PRECIO_OUT_USD_1M", "0"))

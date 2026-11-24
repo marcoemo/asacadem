@@ -44,3 +44,18 @@ def reset_servicios() -> None:
     """Sólo para tests."""
     global _rag, _memoria, _tickets
     _rag = _memoria = _tickets = None
+
+
+def olvidar_usuario(usuario_id: str, checkpointer=None, thread_id: str | None = None) -> dict:
+    """Derecho de supresión: borra recuerdos, tickets y (si se indica) el historial de un estudiante."""
+    mem = get_memoria()
+    n_mem = mem.conn.execute("DELETE FROM memorias WHERE usuario_id=?", (usuario_id,)).rowcount
+    mem.conn.commit()
+    db = get_tickets_db()
+    n_tk = db.execute("DELETE FROM tickets WHERE usuario_id=?", (usuario_id,)).rowcount
+    db.commit()
+    hilo = False
+    if checkpointer is not None and thread_id and hasattr(checkpointer, "delete_thread"):
+        checkpointer.delete_thread(thread_id)
+        hilo = True
+    return {"memorias": n_mem, "tickets": n_tk, "historial": hilo}

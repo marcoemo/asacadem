@@ -14,6 +14,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
 from . import config
+from .seguridad import redactar_pii
 from .servicios import get_memoria, get_rag, get_tickets_db
 
 PRIORIDADES = {"alta": "4 horas hábiles", "media": "24 horas hábiles", "baja": "72 horas hábiles"}
@@ -87,6 +88,10 @@ def guardar_memoria(dato: str, config_: RunnableConfig) -> str:
     """Guarda en la memoria de largo plazo un dato estable y útil del estudiante
     (carrera, semestre, beca que tiene, trámite en curso). No guardes datos sensibles
     como RUT, contraseñas, salud o situación económica detallada."""
+    _, tipos = redactar_pii(dato)
+    if tipos:
+        return (f"No se guardó: el dato contiene información personal sensible ({', '.join(tipos)}). "
+                "Guarda sólo datos académicos generales.")
     return get_memoria().guardar(_user_id(config_), dato)
 
 

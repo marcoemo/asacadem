@@ -27,6 +27,7 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
 from . import config as cfg
+from .seguridad import detectar_inyeccion, redactar_pii
 from .servicios import get_memoria
 from .tools import TOOLS
 
@@ -36,6 +37,9 @@ class Estado(TypedDict, total=False):
     resumen: str          # resumen de la conversación antigua (ventana de contexto)
     memorias: str         # recuerdos de largo plazo relevantes para este turno
     plan: dict            # plan priorizado generado por el planificador
+    bloqueado: bool       # la guardia rechazó el mensaje (inyección o mensaje demasiado largo)
+    alerta: str           # motivo del bloqueo
+    pii: list             # tipos de datos personales detectados y redactados
 
 
 PROMPT_PLANIFICADOR = """Eres el planificador de un agente de soporte académico universitario.
@@ -55,9 +59,10 @@ Responde en español, claro y breve. Reglas:
 4. Si un plazo está VENCIDO o URGENTE, o el caso es urgente o requiere un humano, usa crear_ticket con prioridad alta.
 5. Si el estudiante da un dato estable sobre sí mismo (carrera, semestre, beca), guárdalo con guardar_memoria.
 6. Nunca inventes normas. Si no sabes, dilo y ofrece derivar con un ticket.
+7. Si te preguntan, aclara que eres un asistente de inteligencia artificial y no un funcionario. No pidas ni repitas datos personales (RUT, correo, teléfono, tarjetas).
 Sigue el plan en orden de prioridad. Cuando termines, responde al estudiante."""
 
-PROMPT_DIRECTO = ("Eres un asistente de soporte académico amable. Responde en español, en una o dos "
+PROMPT_DIRECTO = ("Eres un asistente de inteligencia artificial de soporte académico, amable. Responde en español, en una o dos "
                   "frases. No inventes información académica; si piden algo concreto, invítalos a preguntar.")
 
 
@@ -85,6 +90,32 @@ def construir_grafo(llm: Any, checkpointer: Any = None):
     """llm: cualquier ChatModel de LangChain con bind_tools (se inyecta en los tests)."""
     llm_tools = llm.bind_tools(TOOLS)
 
+    def guardia(state: Estado) -> dict:
+        """Seguridad de entrada: redacta datos personales y bloquea inyecciones o mensajes excesivos."""
+        msg = next((m for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), None)
+        if msg is None:
+            return {"bloqueado": False, "alerta": "", "pii": []}
+        texto = _texto(msg)
+        redactado, tipos = redactar_pii(texto)
+        alertas = [f"inyeccion:{a}" for a in detectar_inyeccion(texto)]
+        if len(texto) > cfg.MAX_INPUT_CHARS:
+            alertas.append("mensaje_largo")
+        upd: dict = {"bloqueado": bool(alertas), "alerta": ",".join(alertas), "pii": tipos}
+        if tipos:  # el modelo y el historial no ven los datos personales (minimización)
+            upd["messages"] = [HumanMessage(content=redactado, id=msg.id)]
+        return upd
+
+    def enrutar_guardia(state: Estado) -> str:
+        return "responder_bloqueo" if state.get("bloqueado") else "recuperar_contexto"
+
+    def responder_bloqueo(state: Estado) -> dict:
+        if "mensaje_largo" in state.get("alerta", ""):
+            texto = "Tu mensaje es demasiado largo. Cuéntame tu consulta en pocas líneas, por favor."
+        else:
+            texto = ("No puedo procesar esa solicitud. Puedo ayudarte con consultas sobre titulación, becas, "
+                     "notas, certificados y plazos. ¿Qué necesitas?")
+        return {"messages": [AIMessage(content=texto)]}
+
     def recuperar_contexto(state: Estado, config: RunnableConfig) -> dict:
         user_id = config.get("configurable", {}).get("user_id", "anonimo")
         recuerdos = get_memoria().recordar(user_id, _ultimo_humano(state))
@@ -95,7 +126,7 @@ def construir_grafo(llm: Any, checkpointer: Any = None):
                            HumanMessage(content=_ultimo_humano(state))])
         plan = _extraer_json(_texto(resp))
         if plan.get("intencion") not in {"saludo", "consulta", "tramite", "escalamiento"}:
-            plan = {"intencion": "consulta", "urgencia": "media", "subtareas": []}  # plan por defecto
+            plan = {"intencion": "consulta", "urgencia": "media", "subtareas": [], "fallback": True}  # plan por defecto
         return {"plan": plan}
 
     def enrutar_plan(state: Estado) -> str:
@@ -143,6 +174,8 @@ def construir_grafo(llm: Any, checkpointer: Any = None):
         return {"resumen": nuevo, "messages": [RemoveMessage(id=m.id) for m in antiguos]}
 
     g = StateGraph(Estado)
+    g.add_node("guardia", guardia)
+    g.add_node("responder_bloqueo", responder_bloqueo)
     g.add_node("recuperar_contexto", recuperar_contexto)
     g.add_node("planificar", planificar)
     g.add_node("agente", agente)
@@ -150,7 +183,9 @@ def construir_grafo(llm: Any, checkpointer: Any = None):
     g.add_node("responder_directo", responder_directo)
     g.add_node("resumir", resumir)
 
-    g.add_edge(START, "recuperar_contexto")
+    g.add_edge(START, "guardia")
+    g.add_conditional_edges("guardia", enrutar_guardia, ["responder_bloqueo", "recuperar_contexto"])
+    g.add_edge("responder_bloqueo", "resumir")
     g.add_edge("recuperar_contexto", "planificar")
     g.add_conditional_edges("planificar", enrutar_plan, ["agente", "responder_directo"])
     g.add_conditional_edges("agente", despues_de_agente, ["tools", "resumir"])

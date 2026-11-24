@@ -16,14 +16,16 @@ def ejecutar_turno(grafo, texto: str, user_id: str, thread_id: str, verbose: boo
         for nodo, upd in paso.items():
             if not upd:
                 continue
-            if nodo == "recuperar_contexto" and upd.get("memorias") and verbose:
+            if nodo == "guardia" and verbose and (upd.get("pii") or upd.get("alerta")):
+                print(f"  [guardia] pii={upd.get('pii') or '-'} alerta={upd.get('alerta') or '-'}")
+            elif nodo == "recuperar_contexto" and upd.get("memorias") and verbose:
                 print(f"  [memoria largo plazo] {_corto(upd['memorias'])}")
             elif nodo == "planificar" and verbose:
                 p = upd["plan"]
                 tareas = "; ".join(f"{t.get('orden')}.{t.get('tarea')} ({t.get('prioridad')})"
                                    for t in p.get("subtareas", []))
                 print(f"  [plan] intención={p.get('intencion')} urgencia={p.get('urgencia')} {tareas}")
-            elif nodo in ("agente", "responder_directo"):
+            elif nodo in ("agente", "responder_directo", "responder_bloqueo"):
                 msg = upd["messages"][-1]
                 for tc in getattr(msg, "tool_calls", []) or []:
                     if verbose:

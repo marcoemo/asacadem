@@ -4,7 +4,7 @@ Uso:
   python main.py                       # chat interactivo
   python main.py --user ana --thread t2
   python main.py --reindex             # reconstruye el índice RAG
-Comandos dentro del chat: /nuevo (nueva conversación), /memoria, /tickets, /salir
+Comandos dentro del chat: /nuevo (nueva conversación), /memoria, /tickets, /olvidar (borra tus datos), /salir
 """
 import argparse
 import uuid
@@ -12,7 +12,7 @@ import uuid
 from agente.grafo import construir_grafo, crear_checkpointer
 from agente.llm import get_llm
 from agente.runner import ejecutar_turno
-from agente.servicios import get_memoria, get_rag, get_tickets_db
+from agente.servicios import get_memoria, get_rag, get_tickets_db, olvidar_usuario
 
 
 def main() -> None:
@@ -28,10 +28,12 @@ def main() -> None:
               f"({get_rag().embedder.name})")
         return
 
-    grafo = construir_grafo(get_llm(), checkpointer=crear_checkpointer())
+    cp = crear_checkpointer()
+    grafo = construir_grafo(get_llm(), checkpointer=cp)
     thread = args.thread
     print(f"Agente listo (usuario={args.user}, conversación={thread}, embeddings={get_rag().embedder.name}).")
-    print("Escribe tu consulta. Comandos: /nuevo /memoria /tickets /salir\n")
+    print("Soy un asistente de inteligencia artificial. No compartas RUT, correo ni teléfono.")
+    print("Escribe tu consulta. Comandos: /nuevo /memoria /tickets /olvidar /salir\n")
     while True:
         try:
             texto = input("Tú: ").strip()
@@ -44,6 +46,9 @@ def main() -> None:
         if texto == "/nuevo":
             thread = f"sesion-{uuid.uuid4().hex[:6]}"
             print(f"Nueva conversación: {thread} (la memoria de largo plazo se mantiene)\n")
+            continue
+        if texto == "/olvidar":
+            print("Datos borrados:", olvidar_usuario(args.user, cp, thread), "\n")
             continue
         if texto == "/memoria":
             print("\n".join(f"- {m}" for m in get_memoria().todas(args.user)) or "(vacía)", "\n")
