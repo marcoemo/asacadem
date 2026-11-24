@@ -7,7 +7,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from agente import config as cfg
 from agente.grafo import construir_grafo, crear_checkpointer
 from agente.servicios import get_memoria, get_tickets_db
-from tests.conftest import ia
+from helpers_agente import ia
 
 
 def plan(intencion, urgencia="media", subtareas=None):
